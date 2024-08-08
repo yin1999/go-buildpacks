@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "---> Go Build Buildpack"
+
+# 1. GET ARGS
+plan=${CNB_BP_PLAN_PATH}
+
+# 2. CREATE LAYER DIR
+go_build_layer="${CNB_LAYERS_DIR}"/go-build
+mkdir -p "${go_build_layer}"
+
+# 3. Build the binary
+target_dir="${CNB_LAYERS_DIR}/target"
+
+mkdir -p "${target_dir}"
+
+export PATH="${CNB_LAYERS_DIR}/go/bin:$PATH"
+go_version=$(go version | cut -d' ' -f3)
+
+echo "-----> Building Go Application"
+
+go build -ldflags="-s -w" -o "${target_dir}/app" .
+
+# 4. MAKE go AVAILABLE DURING LAUNCH and CACHE the LAYER
+cat > "${CNB_LAYERS_DIR}/go-build.toml" << EOL
+[types]
+  cache = true
+[metadata]
+  go_version = "${go_version}"
+EOL
+
+cat > "${CNB_LAYERS_DIR}/target.toml" << EOL
+[types]
+  launch = true
+EOL
+
+# 5. Set default start command
+
+# check if the app is created
+if [ -f "${target_dir}/app" ]; then
+  echo "-----> Setting default process configuration"
+  cat > "${CNB_LAYERS_DIR}/launch.toml" << EOL
+[[processes]]
+  type = "web"
+  command = ["${target_dir}/app"]
+  default = true
+EOL
+else
+  echo "-----> No app found"
+fi
+
+
+exit 0

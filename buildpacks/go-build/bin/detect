@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+# ======= ADDED =======
+plan=${CNB_BUILD_PLAN_PATH}
+
+# empty test
+
+# ======= /ADDED =======
+
+exit 0

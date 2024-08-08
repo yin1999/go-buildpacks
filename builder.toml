@@ -1,0 +1,35 @@
+#[[targets.distros]]
+#name = "go-builder"
+#version = "0.0.1"
+
+
+# Buildpacks to include in builder
+[[buildpacks]]
+id = "io.dubbo.buildpacks.go-setup"
+version = "0.0.1"
+uri = "./buildpacks/go-setup"
+
+[[buildpacks]]
+id = "io.dubbo.buildpacks.go-build"
+version = "0.0.1"
+uri = "./buildpacks/go-build"
+
+
+[[order]]
+[[order.group]]
+id = "io.dubbo.buildpacks.go-setup"
+version = "0.0.1"
+
+[[order.group]]
+id = "io.dubbo.buildpacks.go-build"
+version = "0.0.1"
+
+# Base images used to create the builder
+[run]
+[[run.images]]
+image = "dubbo-test/go-base-run:noble"
+mirrors = ["registry.cn-hangzhou.aliyuncs.com/dubbo-test/go-base-run:noble"]
+[build]
+#[[build.images]]
+image = "dubbo-test/go-base-build:noble"
+#mirrors = ["registry.cn-hangzhou.aliyuncs.com/dubbo-test/go-base-build:noble"]

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "---> Go Setup Buildpack"
+
+# 1. GET ARGS
+plan=${CNB_BP_PLAN_PATH}
+
+# 2. CREATE LAYER DIR
+go_layer="${CNB_LAYERS_DIR}/go"
+mkdir -p "${go_layer}"
+
+# 3. DOWNLOAD go
+default_go_version='go1.22.4'
+
+go_version=$(cat "${plan}" | tomlq -r '.entries[] | select(.name == "go") | .metadata.version' || echo "${default_go_version}")
+go_url="https://go.dev/dl/${go_version}.linux-amd64.tar.gz"
+cached_go_version=$(cat "${CNB_LAYERS_DIR}/go.toml" 2> /dev/null | tomlq -r '.metadata.go_version' 2> /dev/null || echo 'NOT FOUND')
+if [[ "${go_url}" != *"${cached_go_version}"* ]] ; then
+	echo "---> Downloading and extracting Go"
+	rm -rf "${go_layer}/*"
+	curl -sLo - "${go_url}" | tar -xz --strip-components 1 -C "${go_layer}"
+else
+	echo "---> Reusing Go"
+fi
+
+# 4. MAKE go AVAILABLE DURING CACHE the LAYER
+cat > "${CNB_LAYERS_DIR}/go.toml" << EOL
+[types]
+  cache = true
+  build = true
+[metadata]
+  go_version = "${go_version}"
+EOL
+
+exit 0

@@ -1,0 +1,16 @@
+# Buildpack API version
+api = "0.10"
+
+# Buildpack ID and metadata
+[buildpack]
+id = "io.dubbo.buildpacks.go-setup"
+version = "0.0.1"
+name = "Go Buildpack for Dubbo"
+
+[metadata]
+  include-files = ["bin/build", "bin/detect", "buildpack.toml"]
+
+# Targets the buildpack will work with
+[[targets]]
+  os = "linux"
+  arch = "amd64"
