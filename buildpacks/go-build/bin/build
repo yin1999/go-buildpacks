@@ -4,8 +4,24 @@ set -euo pipefail
 
 echo "---> Go Build Buildpack"
 
+# PRE variable
+tempdir=$(mktemp -d)
+
 # 1. GET ARGS
 plan=${CNB_BP_PLAN_PATH}
+# The base directory of build_artifact is the root of the source code
+build_artifact="${BP_BUILT_ARTIFACT}" || "${tempdir}/app"
+build_command="${BP_BUILD_COMMAND}" || "go build -ldflags='-s -w' -o '${tempdir}/app' ."
+# format of 'run command':
+# '["./executable", "arg1", "arg2", ...]'
+# default to '["./app"]'
+# the working directory is the root of the app
+run_command="${BP_RUN_COMMAND}" || '["./app"]'
+
+## log variables
+echo "Build artifact: ${build_artifact}"
+echo "Build command: ${build_command}"
+echo "Run command: ${run_command}"
 
 # 2. CREATE LAYER DIR
 go_build_layer="${CNB_LAYERS_DIR}"/go-build
@@ -14,14 +30,23 @@ mkdir -p "${go_build_layer}"
 # 3. Build the binary
 target_dir="${CNB_LAYERS_DIR}/target"
 
-mkdir -p "${target_dir}"
-
 export PATH="${CNB_LAYERS_DIR}/go/bin:$PATH"
 go_version=$(go version | cut -d' ' -f3)
 
 echo "-----> Building Go Application"
 
-go build -ldflags="-s -w" -o "${target_dir}/app" .
+# run build command
+echo "Run command: ${build_command}"
+eval " ${build_command}"
+
+# move built artifacts
+# check if the 'build_artifact' is a dir
+if [[ -d "${build_artifact}" ]]; then
+  cp -r "${build_artifact}" "${target_dir}"
+else
+  mkdir -p "${target_dir}"
+  cp "${build_artifact}" "${target_dir}"
+fi
 
 # 4. MAKE go AVAILABLE DURING LAUNCH and CACHE the LAYER
 cat > "${CNB_LAYERS_DIR}/go-build.toml" << EOL
@@ -38,18 +63,21 @@ EOL
 
 # 5. Set default start command
 
-# check if the app is created
-if [ -f "${target_dir}/app" ]; then
-  echo "-----> Setting default process configuration"
-  cat > "${CNB_LAYERS_DIR}/launch.toml" << EOL
+# check if the target dir is empty
+if [ -z "$(ls -A ${target_dir})" ]; then
+  echo "-----> No app found"
+  exit 1
+fi
+
+# set default start command
+echo "-----> Setting default process configuration"
+cat > "${CNB_LAYERS_DIR}/launch.toml" << EOF
 [[processes]]
   type = "web"
-  command = ["${target_dir}/app"]
+  command = ${run_command}
   default = true
-EOL
-else
-  echo "-----> No app found"
-fi
+  working-dir = "${target_dir}"
+EOF
 
 
 exit 0
